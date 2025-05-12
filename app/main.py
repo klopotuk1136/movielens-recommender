@@ -1,5 +1,4 @@
 import os
-import glob
 from fastapi import FastAPI, Depends, HTTPException
 from psycopg2 import pool
 import psycopg2
@@ -8,21 +7,6 @@ from pgvector.psycopg2 import register_vector
 app = FastAPI()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@db:5432/postgres")
-
-ROOT = os.path.dirname(os.path.abspath(__file__))
-
-
-def run_migrations(conn):
-    cur = conn.cursor()
-    # Makes sure that the extension is loaded before all other queries
-    cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-    conn.commit()
-
-    for path in sorted(glob.glob(os.path.join(ROOT, "sql", "*.sql"))):
-        sql = open(path).read()
-        cur.execute(sql)
-    conn.commit()
-    cur.close()
 
 @app.on_event("startup")
 def on_startup():
@@ -40,7 +24,6 @@ def on_startup():
     # initialize vector type on one connection
     conn = app.state.db_pool.getconn()
     try:
-        run_migrations(conn)
         register_vector(conn)
     finally:
         app.state.db_pool.putconn(conn)
