@@ -6,14 +6,15 @@ from psycopg2 import extras
 
 DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Paths to CSV files
-DATA_PATH = r"data\ml-20m\ml-20m"
+DATA_PATH = os.path.join(ROOT, r"data\ml-20m\ml-20m")
 MOVIES_CSV = os.path.join(DATA_PATH, 'movies.csv')
 RATINGS_CSV = os.path.join(DATA_PATH, 'ratings.csv')
 TAGS_CSV   = os.path.join(DATA_PATH, 'tags.csv')
 LINKS_CSV  = os.path.join(DATA_PATH, 'links.csv')
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # Read raw movies to extract genres
 print("Reading movies CSV to extract genres...")

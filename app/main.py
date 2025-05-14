@@ -1,27 +1,33 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from psycopg2 import pool
-import psycopg2
 from pgvector.psycopg2 import register_vector
+
+from tmdb import get_poster_path
+from db import get_movie_metadata
+from recommendations import get_dummy_recommendations
 
 app = FastAPI()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@db:5432/postgres")
+templates = Jinja2Templates(directory="static")
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@localhost:5432/postgres")
+#DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@db:5432/postgres")
+
 
 @app.on_event("startup")
 def on_startup():
     """
     - Create a psycopg2 connection pool
-    - Register the pgvector type on one connection (so the driver knows about VECTOR)
+    - Register the pgvector type on one connection
     """
-    # minconn=1, maxconn=5 should be plenty for a light workload
     app.state.db_pool = pool.SimpleConnectionPool(
         minconn=1,
         maxconn=5,
         dsn=DATABASE_URL,
     )
-
-    # initialize vector type on one connection
     conn = app.state.db_pool.getconn()
     try:
         register_vector(conn)
@@ -58,55 +64,43 @@ def health_check(conn=Depends(get_conn)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def root(request: Request):
+    """The index page where the user selects the movie ID"""
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/documents/{doc_id}/embed")
-def upsert_embedding(doc_id: int, embedding: list[float], conn=Depends(get_conn)):
-    """
-    Insert or update a 1536-dim vector.
-    Make sure you’ve already run your CREATE TABLE migrations.
-    """
-    if len(embedding) != 1536:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Expected 1536-dim vector, got {len(embedding)}",
+@app.get("/movies/{movie_id}/", response_class=HTMLResponse)
+async def get_movie_page(request: Request, movie_id: int, conn=Depends(get_conn)):
+    """The movie page where the user sees the movie details as well as recommendations"""
+    movie_metadata = get_movie_metadata(conn, movie_id)
+
+    poster_url = None
+    if movie_metadata.get('tmdbid'):
+        poster_url = get_poster_path(movie_metadata.get('tmdbid'))
+
+    movie_metadata['poster_url'] = poster_url
+    
+    recommendation_ids = get_dummy_recommendations(movie_id)
+    recommendations = []
+    for rec_id in recommendation_ids:
+        rec_metadata = get_movie_metadata(conn, rec_id)
+        poster_url = None
+        if rec_metadata.get('tmdbid'):
+            rec_poster_url = get_poster_path(rec_metadata.get('tmdbid'))
+        recommendations.append(
+            {
+                'title': rec_metadata.get('title'),
+                'poster_url': rec_poster_url
+            }
         )
 
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO documents (id, embedding)
-            VALUES (%s, %s)
-            ON CONFLICT (id) DO UPDATE
-              SET embedding = EXCLUDED.embedding;
-            """,
-            (doc_id, embedding),
-        )
-    conn.commit()
-    return {"status": "saved", "id": doc_id}
-
-
-@app.post("/search")
-def search(embedding: list[float], limit: int = 5, conn=Depends(get_conn)):
-    """
-    Nearest-neighbour search using cosine distance.
-    Assumes you’ve indexed documents.embedding WITH vector_cosine_ops.
-    """
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT id, content, embedding <=> %s AS distance
-            FROM documents
-            ORDER BY distance
-            LIMIT %s;
-            """,
-            (embedding, limit),
-        )
-        rows = cur.fetchall()
-
-    return [
-        {"id": r[0], "content": r[1], "distance": r[2]}
-        for r in rows
-    ]
+    
+    # 3) Render template
+    return templates.TemplateResponse("movie.html", {
+        "request":     request,
+        "movie": movie_metadata,
+        'recommendations': recommendations
+    })
 
 
 if __name__ == "__main__":
