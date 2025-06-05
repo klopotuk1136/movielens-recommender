@@ -3,6 +3,10 @@ import pandas as pd
 import psycopg2
 import glob
 from psycopg2 import extras
+from tqdm import tqdm
+
+from clip_processor import compute_and_store_poster_embedding
+from tmdb import get_poster_path
 
 DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
 
@@ -102,6 +106,26 @@ def copy_links(cur, links_csv_path):
             f
         )
 
+def preprocess_clip_embeddings(cur, truncate=False, limit=None):
+
+    if truncate:
+        cur.execute("TRUNCATE clip_embeddings CASCADE;")
+    print("Processing movie poster paths")
+
+    cur.execute("SELECT count(*) from links")
+    movie_number = cur.fetchone()[0]
+
+    sql = "SELECT movieid, tmdbid FROM links"
+    if limit:
+        sql += f' limit {limit}'
+        movie_number = limit
+    cur.execute(sql)
+
+    for movieid, tmdbid in tqdm(cur, total=movie_number):
+        poster_path = get_poster_path(tmdbid)
+        compute_and_store_poster_embedding(movieid, poster_path)
+
+
 # Main load logic
 def main():
     conn = connect()
@@ -133,6 +157,8 @@ def main():
     # 5. Bulk load links
     copy_links(cur, LINKS_CSV)
 
+    # 6. Calculate clip embeddings for posters and save them
+    preprocess_clip_embeddings(cur)
     cur.close()
     conn.close()
     print("MovieLens data loaded successfully.")
