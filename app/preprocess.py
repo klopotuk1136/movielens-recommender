@@ -158,7 +158,7 @@ def main():
     copy_links(cur, LINKS_CSV)
 
     # 6. Calculate clip embeddings for posters and save them
-    preprocess_clip_embeddings(cur)
+    preprocess_clip_embeddings(cur, limit=3000)
     cur.close()
     conn.close()
     print("MovieLens data loaded successfully.")

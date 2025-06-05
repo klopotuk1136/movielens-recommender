@@ -96,40 +96,19 @@ def compute_and_store_poster_embedding(movie_id: int, poster_path: str):
       
     Raises on any network/DB/CLIP errors.
     """
-    # 1) Download image
-    img = fetch_poster_image(poster_path)
-    
-    # 2) Compute CLIP embedding
-    emb = get_clip_embedding(img)  # torch.Tensor of shape (512,)
-    
-    # 3) Connect to Postgres and store
     conn = psycopg2.connect(DB_URL)
     try:
+        # 1) Download image
+        if poster_path is None:
+            return
+        img = fetch_poster_image(poster_path)
+        
+        # 2) Compute CLIP embedding
+        emb = get_clip_embedding(img)  # torch.Tensor of shape (512,)
+        
+        # 3) Connect to Postgres and store
         store_embedding_in_pg(movie_id, emb, conn)
+    except Exception:
+        print(f"Couldn't get an embedding for movie: {movie_id}")
     finally:
         conn.close()
-
-
-if __name__ == "__main__":
-    # Example usage:
-    # Suppose you already have movie_id=123 and poster_path="/xyz789.jpg"
-    # You could call:
-    #
-    #    compute_and_store_poster_embedding(123, "/xyz789.jpg")
-    #
-    # and it will download the image at
-    #    https://image.tmdb.org/t/p/original/xyz789.jpg
-    # embed it via CLIP, then upsert into your movie_embeddings table.
-    
-    # For demonstration, you could parse arguments or just hardcode:
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Download a TMDB poster, get CLIP embedding, store into Postgres+pgvector"
-    )
-    parser.add_argument("--movie_id", type=int, required=True, help="The integer movie ID in your DB")
-    parser.add_argument("--poster_path", type=str, required=True, help="The TMDB poster_path, e.g. /abc123.jpg")
-    args = parser.parse_args()
-
-    compute_and_store_poster_embedding(args.movie_id, args.poster_path)
-    print(f"✅ Stored embedding for movie_id={args.movie_id}")
