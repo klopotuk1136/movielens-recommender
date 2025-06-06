@@ -7,7 +7,7 @@ from pgvector.psycopg2 import register_vector
 
 from tmdb import get_poster_path
 from db import get_movie_metadata
-from recommendations import get_dummy_recommendations
+from recommendations import get_dummy_recommendations, get_clip_recommendations
 
 app = FastAPI()
 
@@ -80,7 +80,7 @@ async def get_movie_page(request: Request, movie_id: int, conn=Depends(get_conn)
 
     movie_metadata['poster_url'] = poster_url
     
-    recommendation_ids = get_dummy_recommendations(movie_id)
+    recommendation_ids = get_clip_recommendations(conn, movie_id)
     recommendations = []
     for rec_id in recommendation_ids:
         rec_metadata = get_movie_metadata(conn, rec_id)

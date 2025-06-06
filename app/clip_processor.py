@@ -6,33 +6,6 @@ import clip
 from PIL import Image
 from io import BytesIO
 
-# ─── CONFIGURATION ───────────────────────────────────────────────────────────────
-# Make sure you have these environment variables set (or change to your own literals):
-#   TMDB_API_KEY       (not strictly needed for images, but good to have on hand)
-#   TMDB_IMAGE_BASE    e.g. "https://image.tmdb.org/t/p/original"  (or “/w500”, etc.)
-#   DATABASE_URL       e.g. "postgresql://user:pass@host:port/dbname"
-#
-# Also, make sure:
-#   • You have installed the CLIP package and its dependencies:
-#       pip install torch torchvision
-#       pip install git+https://github.com/openai/CLIP.git
-#   • You have installed psycopg2 (or psycopg2-binary) in order to connect to PostgreSQL:
-#       pip install psycopg2-binary
-#
-# The target table (e.g. "movie_embeddings") must already exist and have a `vector(512)` column.
-# Here is an example SQL DDL you might run once:
-#
-#   CREATE EXTENSION IF NOT EXISTS vector;
-#   CREATE TABLE IF NOT EXISTS movie_embeddings (
-#       movie_id    INTEGER PRIMARY KEY,
-#       embedding   VECTOR(512)
-#   );
-#
-# You can change names/dtypes to suit your own schema, but the column storing the CLIP vector
-# must be of type VECTOR(512) (pgvector) so that INSERT … VALUES (%s, %s) with a Python list
-# or NumPy array works out of the box.
-# ───────────────────────────────────────────────────────────────────────────────────
-
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
 
