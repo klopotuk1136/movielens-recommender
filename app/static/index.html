@@ -6,27 +6,72 @@
   <style>
     body { font-family: sans-serif; padding: 2rem; }
     label, input, button { font-size: 1rem; }
-    input { width: 4rem; margin-right: 0.5rem; }
+    input { width: 12rem; margin-right: 0.5rem; }
+    #search-results {
+      max-width: 600px;
+    }
+
+    #search-results li img {
+      height: 180px;           
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    #search-results li {
+      padding: 0.75rem;
+      font-size: 1.1rem;
+      height: 200px;
+    }
+    #search-results li a {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    #search-results li:hover {
+      background: #f0f0f0;
+    }
   </style>
 </head>
 <body>
-  <h1>Find Movie by ID</h1>
-  <form id="movie-form">
-    <label for="movie-id">Movie ID:</label>
-    <input type="number" id="movie-id" name="movie_id" min="1" required>
-    <button type="submit">Go</button>
-  </form>
+  <h1>Find Movie</h1>
+
+  <label for="movie-search">Search by title:</label>
+  <input type="text" id="movie-search" placeholder="Begin typing…" autocomplete="off" />
+  <ul id="search-results"></ul>
 
   <script>
-    document
-      .getElementById('movie-form')
-      .addEventListener('submit', function(e) {
-        e.preventDefault();
-        const id = document.getElementById('movie-id').value.trim();
-        if (id) {
-          window.location.href = `/movies/${encodeURIComponent(id)}/`;
+    const searchInput = document.getElementById('movie-search');
+    const resultsUL   = document.getElementById('search-results');
+    let debounceTimer;
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      const q = searchInput.value.trim();
+      if (!q) {
+        resultsUL.innerHTML = '';
+        return;
+      }
+
+      debounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/search?query=${encodeURIComponent(q)}`);
+          const movies = await res.json();
+          resultsUL.innerHTML = movies
+            .map(m => `
+              <li>
+                <a href="/movies/${m.id}/">
+                  ${m.poster_url
+                    ? `<img src="${m.poster_url}" alt=""">`
+                    : ''
+                  } 
+                  ${m.title}
+                </a>
+              </li>`)
+            .join('');
+        } catch (err) {
+          console.error(err);
         }
-      });
+      }, 300);
+    });
   </script>
 </body>
 </html>

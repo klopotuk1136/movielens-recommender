@@ -27,6 +27,7 @@ def connect():
 def run_migrations(cur):
     # Makes sure that the extension is loaded before all other queries
     cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+    cur.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
 
     for path in sorted(glob.glob(os.path.join(ROOT, "app", "sql", "*.sql"))):
         sql = open(path).read()
@@ -158,7 +159,7 @@ def main():
     copy_links(cur, LINKS_CSV)
 
     # 6. Calculate clip embeddings for posters and save them
-    preprocess_clip_embeddings(cur, limit=3000)
+    #preprocess_clip_embeddings(cur, limit=3000)
     cur.close()
     conn.close()
     print("MovieLens data loaded successfully.")

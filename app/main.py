@@ -1,12 +1,12 @@
 import os
 from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from psycopg2 import pool
 from pgvector.psycopg2 import register_vector
 
 from tmdb import get_poster_path, get_movie_full_metadata
-from db import get_movie_metadata
+from db import get_movie_metadata, search_movies_by_title
 from recommendations import prepare_recommendations
 
 app = FastAPI()
@@ -65,6 +65,23 @@ def health_check(conn=Depends(get_conn)):
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search")
+async def search_movies(query: str, conn=Depends(get_conn)):
+    print(query)
+    if not query:
+        raise HTTPException(400, detail="Query cannot be empty")
+    resulting_movie_ids = search_movies_by_title(conn, query)
+    results = []
+    for movie_id in resulting_movie_ids:
+        movie_metadata = get_movie_metadata(conn, movie_id)
+        poster_url = None
+        if movie_metadata.get('tmdbid'):
+            poster_url = get_poster_path(movie_metadata.get('tmdbid'))
+        movie_metadata['poster_url'] = poster_url
+
+        results.append(movie_metadata)
+    return JSONResponse(results)
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def root(request: Request):
