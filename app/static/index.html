@@ -2,45 +2,149 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Lookup Movie</title>
+  <title>Find Movie</title>
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    label, input, button { font-size: 1rem; }
-    input { width: 12rem; margin-right: 0.5rem; }
-    #search-results {
-      max-width: 600px;
+    :root {
+      --primary: #556cd6;
+      --secondary: #f7f8fa;
+      --bg: #ffffff;
+      --text: #333333;
+      --muted: #555555;
+      --radius: 8px;
+      --transition: 0.3s ease;
+      --shadow: 0 4px 8px rgba(0,0,0,0.05);
     }
-
-    #search-results li img {
-      height: 180px;           
-      vertical-align: middle;
-      margin-right: 8px;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--secondary);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    h1 {
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .search-container {
+      width: 100%;
+      max-width: 1000px;
+      position: relative;
+      margin-bottom: 2rem;
+    }
+    .search-container input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      padding-left: 3rem;
+      border: none;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-size: 1rem;
+      transition: box-shadow var(--transition);
+    }
+    .search-container input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(85,108,214,0.3);
+    }
+    .search-container .icon {
+      position: absolute;
+      top: 50%;
+      left: 1rem;
+      transform: translateY(-50%);
+      font-size: 1.2rem;
+      color: var(--primary);
+    }
+    #search-results {
+      width: 100%;
+      max-width: 1000px;
+      list-style: none;
     }
     #search-results li {
-      padding: 0.75rem;
-      font-size: 1.1rem;
-      height: 200px;
-    }
-    #search-results li a {
-      text-decoration: none;
-      color: inherit;
-      display: block;
+      background: var(--bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+      overflow: hidden;
+      transition: transform var(--transition), box-shadow var(--transition);
+      display: flex;
+      align-items: flex-start;
     }
     #search-results li:hover {
-      background: #f0f0f0;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
+    #search-results li img {
+      width: 120px;
+      height: auto;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    #search-results li .info {
+      padding: 1rem;
+      flex: 1;
+    }
+    #search-results li .info .title {
+      font-size: 1.2rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+    #search-results li .info .year {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    #search-results li .info .genres {
+      font-size: 0.9rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+    #search-results li .info .sinopsis {
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.4;
+      max-height: 4.2em;
+      overflow: hidden;
+      margin-top: 0.25rem;
+    }
+    #search-results li a {
+      display: flex;
+      text-decoration: none;
+      color: inherit;
+      width: 100%;
+    }
+    .no-results {
+      text-align: center;
+      color: var(--muted);
+      margin-top: 2rem;
     }
   </style>
 </head>
 <body>
   <h1>Find Movie</h1>
-
-  <label for="movie-search">Search by title:</label>
-  <input type="text" id="movie-search" placeholder="Begin typing…" autocomplete="off" />
+  <div class="search-container">
+    <span class="icon">🔍</span>
+    <input type="text" id="movie-search" placeholder="Search by title…" autocomplete="off" />
+  </div>
   <ul id="search-results"></ul>
+  <p id="no-results" class="no-results" hidden>No movies found.</p>
 
   <script>
     const searchInput = document.getElementById('movie-search');
     const resultsUL   = document.getElementById('search-results');
+    const noResultsP  = document.getElementById('no-results');
     let debounceTimer;
 
     searchInput.addEventListener('input', () => {
@@ -48,6 +152,7 @@
       const q = searchInput.value.trim();
       if (!q) {
         resultsUL.innerHTML = '';
+        noResultsP.hidden = true;
         return;
       }
 
@@ -55,18 +160,25 @@
         try {
           const res = await fetch(`/search?query=${encodeURIComponent(q)}`);
           const movies = await res.json();
-          resultsUL.innerHTML = movies
-            .map(m => `
-              <li>
-                <a href="/movies/${m.id}/">
-                  ${m.poster_url
-                    ? `<img src="${m.poster_url}" alt=""">`
-                    : ''
-                  } 
-                  ${m.title}
-                </a>
-              </li>`)
-            .join('');
+          if (!movies.length) {
+            resultsUL.innerHTML = '';
+            noResultsP.hidden = false;
+            return;
+          }
+          noResultsP.hidden = true;
+          resultsUL.innerHTML = movies.map(m => `
+            <li>
+              <a href="/movies/${m.id}/">
+                ${m.poster_url ? `<img src="${m.poster_url}" alt="${m.title} poster">` : ''}
+                <div class="info">
+                  <div class="title">${m.title}</div>
+                  ${m.year ? `<div class="year">${m.year}</div>` : ''}
+                  ${m.genres && m.genres.length ? `<div class="genres">${m.genres.join(', ')}</div>` : ''}
+                  ${m.sinopsis ? `<div class="sinopsis">${m.sinopsis.length > 1000 ? m.sinopsis.slice(0, 1000) + '…' : m.sinopsis}</div>` : ''}
+                </div>
+              </a>
+            </li>
+          `).join('');
         } catch (err) {
           console.error(err);
         }

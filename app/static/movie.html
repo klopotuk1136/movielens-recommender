@@ -3,201 +3,228 @@
 <head>
   <meta charset="UTF-8">
   <title>{{ movie.title }}</title>
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    h1 { margin-bottom: .5rem; }
-    .poster { margin-bottom: 1rem; }
-    .meta dt { font-weight: bold; }
-    .links a { margin-right: 1rem; }
-
-    /* Movie details */
+    :root {
+      --primary: #556cd6;
+      --secondary: #f7f8fa;
+      --bg: #ffffff;
+      --text: #333333;
+      --radius: 8px;
+      --transition: 0.3s ease;
+      --shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(180deg, #ffffff 0%, #e0f7ff 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      font-size: 2rem;
+      text-align: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 1000px;
+    }
     #movie-details {
       display: flex;
+      flex-wrap: wrap;
       gap: 2rem;
+      background: var(--bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
       margin-bottom: 2rem;
     }
+    #movie-details .left,
+    #movie-details .right {
+      padding: 1.5rem;
+    }
     #movie-details .left {
-      max-width: 300px;
+      flex: 1 1 300px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
     }
     #movie-details .left img {
       width: 100%;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
     }
-    #movie-details .right dl {
-      margin: 0;
+    #movie-details .right {
+      flex: 2 1 400px;
     }
-    #movie-details .right dt {
-      font-weight: bold;
-      margin-top: 0.5rem;
-    }
-    #movie-details .right dd {
-      margin: 0 0 0.5rem 0;
-    }
-    #movie-details .right .sinopsis {
+    .meta dt {
+      font-weight: 500;
       margin-top: 1rem;
+    }
+    .meta dd {
+      margin: 0.25rem 0 0.75rem 0;
       line-height: 1.4;
     }
-    #movie-details .right .cast-list {
+    .sinopsis {
+      margin-top: 1rem;
+      line-height: 1.6;
+    }
+    .sinopsis strong {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    .cast-list {
       list-style: none;
       padding: 0;
-      margin: 0.25rem 0 1rem 0;
+      margin: 0.5rem 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
-    #movie-details .right .cast-list li {
-      margin-bottom: 0.25rem;
+    .cast-list li {
+      background: var(--secondary);
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      box-shadow: var(--shadow);
+    }
+    .links a {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+    .links a:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
     }
 
-    /* Recommendation styles */
+    /* Recommendations */
     #all-recommendations {
-      margin-top: 2rem;
+      width: 100%;
+      max-width: 1000px;
     }
     .alg-section {
       margin-bottom: 2rem;
     }
     .alg-section h2 {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--primary);
       margin-bottom: 1rem;
-      font-size: 1.2rem;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: .25rem;
     }
     .recommendation-list {
       display: flex;
       gap: 1rem;
       overflow-x: auto;
+      padding-bottom: 0.5rem;
     }
     .recommendation-item {
+      flex: 0 0 140px;
       text-align: center;
-      max-width: 150px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: transform var(--transition), box-shadow var(--transition);
+      text-decoration: none;
+      color: inherit;
     }
-    .recommendation-item {
-      display: inline-block;       /* so they sit side by side */
-      text-align: center;
-      max-width: 150px;
-      margin-right: 1rem;
-      text-decoration: none;       /* remove underline */
-      color: inherit;              /* keep your font color */
+    .recommendation-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
     }
-
-    /* Your existing image styles still apply */
     .recommendation-item img {
-      max-width: 100%;
-      border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-      transition: transform .2s ease-in-out;
-    }
-    .recommendation-item:hover img {
-      transform: scale(1.05);
+      width: 100%;
+      height: auto;
+      display: block;
     }
     .rec-title {
-      margin-top: .5rem;
+      padding: 0.5rem;
       font-size: 0.9rem;
+      font-weight: 500;
     }
   </style>
 </head>
 <body>
   <h1>{{ movie.title }}</h1>
-
-  <section id="movie-details">
-    <!-- Left: Poster -->
-    <div class="left">
-      {% if movie.poster_path %}
-        <img
-          src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
-          alt="Poster for {{ movie.title }}"
-        >
-      {% endif %}
-    </div>
-
-    <!-- Right: Metadata -->
-    <div class="right">
-      <dl class="meta">
-        <dt>Title:</dt>
-          <dd>{{ movie.title }}</dd>
-
-        <dt>Genres:</dt>
-          <dd>
-            {% if movie.genres %}
-              {{ movie.genres | join(", ") }}
-            {% else %}
-              (none)
-            {% endif %}
-          </dd>
-
-        <dt>Average Rating:</dt>
-          <dd>
-            {% if movie.avg_rating is defined %}
-              {{ movie.avg_rating }} / 10
-            {% else %}
-              (n/a)
-            {% endif %}
-          </dd>
-
-        <dt>Cast:</dt>
-          <dd>
-            {% if movie.cast %}
-              <ul class="cast-list">
-                {% for actor in movie.cast %}
-                  <li>{{ actor }}</li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              (no cast data)
-            {% endif %}
-          </dd>
-      </dl>
-
-      <!-- Sinopsis Paragraph -->
-      {% if movie.sinopsis %}
-        <div class="sinopsis">
-          <strong>Sinopsis:</strong>
-          <p>{{ movie.sinopsis }}</p>
-        </div>
-      {% endif %}
-
-      <!-- Link to TMDb -->
-      {% if movie.tmdb_url %}
-        <div class="links">
-          <a href="{{ movie.tmdb_url }}" target="_blank">
-            View on TMDb
-          </a>
-        </div>
-      {% endif %}
-    </div>
-  </section>
-
-  <!-- All Recommendation Algorithms -->
-  {% if recommendations %}
-  <section id="all-recommendations">
-    {# 
-      We expect `recommendations` to be a list of exactly five lists, e.g.:
-      recommendations = [
-        [ {title: "...", poster_url: "..."}, … ],   # alg 1
-        [ … ],                                       # alg 2
-        …                                            # alg 5
-      ]
-    #}
-    {% for recs in recommendations %}
-      <div class="alg-section">
-        <h2>Recommendation Algorithm {{ loop.index }}</h2>
-        <div class="recommendation-list">
-          {% for rec in recs %}
-          <a 
-            class="recommendation-item" 
-            href="/movies/{{ rec.movie_id }}/"
-          >
-            {% if rec.poster_url %}
-              <img 
-                src="{{ rec.poster_url }}" 
-                alt="Poster for {{ rec.title }}"
-              >
-            {% endif %}
-            <div class="rec-title">{{ rec.title }}</div>
-          </a>
-        {% endfor %}
-        </div>
+  <div class="container">
+    <section id="movie-details">
+      <div class="left">
+        {% if movie.poster_path %}
+          <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" alt="Poster for {{ movie.title }}">
+        {% endif %}
       </div>
-    {% endfor %}
-  </section>
-  {% endif %}
+      <div class="right">
+        <dl class="meta">
+          <dt>Title:</dt>
+            <dd>{{ movie.title }}</dd>
+          <dt>Genres:</dt>
+            <dd>{% if movie.genres %}{{ movie.genres | join(", ") }}{% else %}(none){% endif %}</dd>
+          <dt>Average Rating:</dt>
+            <dd>{% if movie.avg_rating is defined %}{{ movie.avg_rating }} / 10{% else %}(n/a){% endif %}</dd>
+          <dt>Cast:</dt>
+            <dd>{% if movie.cast %}
+              <ul class="cast-list">
+                {% for actor in movie.cast %}<li>{{ actor }}</li>{% endfor %}
+              </ul>
+            {% else %}(no cast data){% endif %}</dd>
+        </dl>
+
+        {% if movie.sinopsis %}
+          <div class="sinopsis">
+            <strong>Sinopsis:</strong>
+            <p>{{ movie.sinopsis }}</p>
+          </div>
+        {% endif %}
+
+        {% if movie.tmdb_url %}
+          <div class="links">
+            <a href="{{ movie.tmdb_url }}" target="_blank">View on TMDb</a>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    {% if recommendations %}
+      <section id="all-recommendations">
+        {% for recs in recommendations %}
+          <div class="alg-section">
+            <h2>Recommendation Algorithm {{ loop.index }}</h2>
+            <div class="recommendation-list">
+              {% for rec in recs %}
+                <a class="recommendation-item" href="/movies/{{ rec.movie_id }}/">
+                  {% if rec.poster_url %}
+                    <img src="{{ rec.poster_url }}" alt="Poster for {{ rec.title }}">
+                  {% endif %}
+                  <div class="rec-title">{{ rec.title }}</div>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </section>
+    {% endif %}
+  </div>
 </body>
 </html>

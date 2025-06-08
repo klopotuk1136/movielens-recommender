@@ -75,12 +75,19 @@ async def search_movies(query: str, conn=Depends(get_conn)):
     results = []
     for movie_id in resulting_movie_ids:
         movie_metadata = get_movie_metadata(conn, movie_id)
+        try:
+            movie_additional_info = get_movie_full_metadata(movie_metadata.get('tmdbid'))
+        except ValueError:
+            movie_additional_info = movie_metadata
+        except RuntimeError:
+            movie_additional_info = movie_metadata
         poster_url = None
         if movie_metadata.get('tmdbid'):
             poster_url = get_poster_path(movie_metadata.get('tmdbid'))
-        movie_metadata['poster_url'] = poster_url
+        movie_additional_info['poster_url'] = poster_url
+        movie_additional_info['id'] = movie_id
 
-        results.append(movie_metadata)
+        results.append(movie_additional_info)
     return JSONResponse(results)
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -92,13 +99,17 @@ async def root(request: Request):
 async def get_movie_page(request: Request, movie_id: int, conn=Depends(get_conn)):
     """The movie page where the user sees the movie details as well as recommendations"""
     movie_metadata = get_movie_metadata(conn, movie_id)
-    movie_additional_info = get_movie_full_metadata(movie_metadata.get('tmdbid'))
-
+    try:
+        movie_additional_info = get_movie_full_metadata(movie_metadata.get('tmdbid'))
+    except ValueError:
+        movie_additional_info = movie_metadata
+    except RuntimeError:
+        movie_additional_info = movie_metadata
     poster_url = None
     if movie_metadata.get('tmdbid'):
         poster_url = get_poster_path(movie_metadata.get('tmdbid'))
 
-    movie_metadata['poster_url'] = poster_url
+    movie_additional_info['poster_url'] = poster_url
 
     recommendations = prepare_recommendations(conn, movie_id, ALGORITHMS)
     return templates.TemplateResponse("movie.html", {
