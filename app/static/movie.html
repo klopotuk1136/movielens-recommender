@@ -9,62 +9,194 @@
     .poster { margin-bottom: 1rem; }
     .meta dt { font-weight: bold; }
     .links a { margin-right: 1rem; }
+
+    /* Movie details */
+    #movie-details {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    #movie-details .left {
+      max-width: 300px;
+    }
+    #movie-details .left img {
+      width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    #movie-details .right dl {
+      margin: 0;
+    }
+    #movie-details .right dt {
+      font-weight: bold;
+      margin-top: 0.5rem;
+    }
+    #movie-details .right dd {
+      margin: 0 0 0.5rem 0;
+    }
+    #movie-details .right .sinopsis {
+      margin-top: 1rem;
+      line-height: 1.4;
+    }
+    #movie-details .right .cast-list {
+      list-style: none;
+      padding: 0;
+      margin: 0.25rem 0 1rem 0;
+    }
+    #movie-details .right .cast-list li {
+      margin-bottom: 0.25rem;
+    }
+
     /* Recommendation styles */
-    #recommendations { margin-top: 2rem; }
-    #recommendations h2 { margin-bottom: 1rem; }
-    .recommendation-list { display: flex; gap: 1rem; }
-    .recommendation-item { text-align: center; max-width: 150px; }
-    .recommendation-item img { max-width: 100%; border-radius: 4px; }
-    .rec-title { margin-top: .5rem; font-size: 0.9rem; }
+    #all-recommendations {
+      margin-top: 2rem;
+    }
+    .alg-section {
+      margin-bottom: 2rem;
+    }
+    .alg-section h2 {
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: .25rem;
+    }
+    .recommendation-list {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+    }
+    .recommendation-item {
+      text-align: center;
+      max-width: 150px;
+    }
+    .recommendation-item {
+      display: inline-block;       /* so they sit side by side */
+      text-align: center;
+      max-width: 150px;
+      margin-right: 1rem;
+      text-decoration: none;       /* remove underline */
+      color: inherit;              /* keep your font color */
+    }
+
+    /* Your existing image styles still apply */
+    .recommendation-item img {
+      max-width: 100%;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      transition: transform .2s ease-in-out;
+    }
+    .recommendation-item:hover img {
+      transform: scale(1.05);
+    }
+    .rec-title {
+      margin-top: .5rem;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
   <h1>{{ movie.title }}</h1>
 
-  {% if movie.poster_url %}
-    <div class="poster">
-      <img src="{{ movie.poster_url }}"
-           alt="Poster for {{ movie.title }}"
-           style="max-width:300px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.2);">
-    </div>
-  {% endif %}
-
-  <dl class="meta">
-    <dt>ID:</dt><dd>{{ movie.id }}</dd>
-    <dt>Genres:</dt>
-      <dd>
-        {% if movie.genres %}
-          {{ movie.genres | join(", ") }}
-        {% else %}
-          (none)
-        {% endif %}
-      </dd>
-  </dl>
-
-  {% if movie.imdbid or movie.tmdbid %}
-    <div class="links">
-      {% if movie.tmdbid %}
-        <a href="https://www.themoviedb.org/movie/{{ movie.tmdbid }}" target="_blank">
-          TMDb
-        </a>
+  <section id="movie-details">
+    <!-- Left: Poster -->
+    <div class="left">
+      {% if movie.poster_path %}
+        <img
+          src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
+          alt="Poster for {{ movie.title }}"
+        >
       {% endif %}
     </div>
-  {% endif %}
 
-  <!-- Recommendations section -->
-  {% if recommendations %}
-  <section id="recommendations">
-    <h2>Recommended Movies</h2>
-    <div class="recommendation-list">
-      {% for rec in recommendations[:5] %}
-      <div class="recommendation-item">
-        {% if rec.poster_url %}
-        <img src="{{ rec.poster_url }}" alt="Poster for {{ rec.title }}">
-        {% endif %}
-        <div class="rec-title">{{ rec.title }}</div>
-      </div>
-      {% endfor %}
+    <!-- Right: Metadata -->
+    <div class="right">
+      <dl class="meta">
+        <dt>Title:</dt>
+          <dd>{{ movie.title }}</dd>
+
+        <dt>Genres:</dt>
+          <dd>
+            {% if movie.genres %}
+              {{ movie.genres | join(", ") }}
+            {% else %}
+              (none)
+            {% endif %}
+          </dd>
+
+        <dt>Average Rating:</dt>
+          <dd>
+            {% if movie.avg_rating is defined %}
+              {{ movie.avg_rating }} / 10
+            {% else %}
+              (n/a)
+            {% endif %}
+          </dd>
+
+        <dt>Cast:</dt>
+          <dd>
+            {% if movie.cast %}
+              <ul class="cast-list">
+                {% for actor in movie.cast %}
+                  <li>{{ actor }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              (no cast data)
+            {% endif %}
+          </dd>
+      </dl>
+
+      <!-- Sinopsis Paragraph -->
+      {% if movie.sinopsis %}
+        <div class="sinopsis">
+          <strong>Sinopsis:</strong>
+          <p>{{ movie.sinopsis }}</p>
+        </div>
+      {% endif %}
+
+      <!-- Link to TMDb -->
+      {% if movie.tmdb_url %}
+        <div class="links">
+          <a href="{{ movie.tmdb_url }}" target="_blank">
+            View on TMDb
+          </a>
+        </div>
+      {% endif %}
     </div>
+  </section>
+
+  <!-- All Recommendation Algorithms -->
+  {% if recommendations %}
+  <section id="all-recommendations">
+    {# 
+      We expect `recommendations` to be a list of exactly five lists, e.g.:
+      recommendations = [
+        [ {title: "...", poster_url: "..."}, … ],   # alg 1
+        [ … ],                                       # alg 2
+        …                                            # alg 5
+      ]
+    #}
+    {% for recs in recommendations %}
+      <div class="alg-section">
+        <h2>Recommendation Algorithm {{ loop.index }}</h2>
+        <div class="recommendation-list">
+          {% for rec in recs %}
+          <a 
+            class="recommendation-item" 
+            href="/movies/{{ rec.movie_id }}/"
+          >
+            {% if rec.poster_url %}
+              <img 
+                src="{{ rec.poster_url }}" 
+                alt="Poster for {{ rec.title }}"
+              >
+            {% endif %}
+            <div class="rec-title">{{ rec.title }}</div>
+          </a>
+        {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
   </section>
   {% endif %}
 </body>

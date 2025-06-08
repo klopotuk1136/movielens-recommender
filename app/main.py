@@ -5,9 +5,9 @@ from fastapi.templating import Jinja2Templates
 from psycopg2 import pool
 from pgvector.psycopg2 import register_vector
 
-from tmdb import get_poster_path
+from tmdb import get_poster_path, get_movie_full_metadata
 from db import get_movie_metadata
-from recommendations import get_dummy_recommendations, get_clip_recommendations
+from recommendations import prepare_recommendations
 
 app = FastAPI()
 
@@ -15,6 +15,8 @@ templates = Jinja2Templates(directory="static")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@localhost:5432/postgres")
 #DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@db:5432/postgres")
+
+ALGORITHMS = ["clip", "dummy", "clip", "dummy", "dummy", "clip"]
 
 
 @app.on_event("startup")
@@ -73,32 +75,18 @@ async def root(request: Request):
 async def get_movie_page(request: Request, movie_id: int, conn=Depends(get_conn)):
     """The movie page where the user sees the movie details as well as recommendations"""
     movie_metadata = get_movie_metadata(conn, movie_id)
+    movie_additional_info = get_movie_full_metadata(movie_metadata.get('tmdbid'))
 
     poster_url = None
     if movie_metadata.get('tmdbid'):
         poster_url = get_poster_path(movie_metadata.get('tmdbid'))
 
     movie_metadata['poster_url'] = poster_url
-    
-    recommendation_ids = get_clip_recommendations(conn, movie_id)
-    recommendations = []
-    for rec_id in recommendation_ids:
-        rec_metadata = get_movie_metadata(conn, rec_id)
-        poster_url = None
-        if rec_metadata.get('tmdbid'):
-            rec_poster_url = get_poster_path(rec_metadata.get('tmdbid'))
-        recommendations.append(
-            {
-                'title': rec_metadata.get('title'),
-                'poster_url': rec_poster_url
-            }
-        )
 
-    
-    # 3) Render template
+    recommendations = prepare_recommendations(conn, movie_id, ALGORITHMS)
     return templates.TemplateResponse("movie.html", {
         "request":     request,
-        "movie": movie_metadata,
+        "movie": movie_additional_info,
         'recommendations': recommendations
     })
 
