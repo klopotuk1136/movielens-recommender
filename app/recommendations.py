@@ -12,7 +12,7 @@ def prepare_recommendations(conn, movie_id, algorithms):
         algorithm_recommendations = []
         for rec_id in recommendation_ids:
             rec_metadata = get_movie_metadata(conn, rec_id)
-            poster_url = None
+            rec_poster_url = None
             if rec_metadata.get('tmdbid'):
                 rec_poster_url = get_poster_path(rec_metadata.get('tmdbid'))
             algorithm_recommendations.append(
@@ -96,3 +96,6 @@ def get_openai_recommendations(conn, movie_id: int, top_k: int = 5):
         """
         cur.execute(sql, (movie_id, target_embedding, top_k))
         return [row[0] for row in cur.fetchall()]
+    
+def get_rating_item2item_recommendation(conn, movie_id: int, top_k: int = 5):
+    pass
