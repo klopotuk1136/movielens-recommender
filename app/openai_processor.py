@@ -1,7 +1,10 @@
 import os
 import openai
+from pydantic import BaseModel
 import psycopg2
 from dotenv import load_dotenv
+
+from db import get_movie_metadata, search_movies_by_title
 
 # Look for a .env file
 load_dotenv()
@@ -79,3 +82,35 @@ def compute_and_store_description_embedding(movie_id: int, description: str):
         print(f"Couldn't get an embedding for movie: {movie_id}")
     finally:
         conn.close()
+
+class RecommendationsList(BaseModel):
+    recommended_titles: list[str]
+
+def get_chatgpt_predictions(movie_title):
+    client = openai.OpenAI()
+
+    response = client.responses.parse(
+        model="gpt-4o-2024-08-06",
+        input=[
+            {
+                "role": "system",
+                "content": """
+                    You are a movie recommender expert.
+                    Your goal is to recommend movies you think the user will like if they liked the movie you were provided.
+                    Return a list of at least 10 movies that are similar to the one that the user told you.
+                """,
+            },
+            {
+                "role": "user",
+                "content": f"I like {movie_title}. Can you recommend something similar?"
+            },
+        ],
+        text_format=RecommendationsList,
+    )
+    recommended_titles = response.output_parsed.recommended_titles
+    return recommended_titles
+
+
+if __name__ == '__main__':
+    recommended_titles = get_chatgpt_predictions("Finding Nemo")
+    print(recommended_titles)

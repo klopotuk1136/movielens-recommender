@@ -16,7 +16,7 @@ templates = Jinja2Templates(directory="static")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@localhost:5432/postgres")
 #DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@db:5432/postgres")
 
-ALGORITHMS = ["clip", "dummy", "ratings"]
+ALGORITHMS = ["clip", "dummy", "ratings", "chatgpt"]
 
 
 @app.on_event("startup")
@@ -71,7 +71,7 @@ async def search_movies(query: str, conn=Depends(get_conn)):
     print(query)
     if not query:
         raise HTTPException(400, detail="Query cannot be empty")
-    resulting_movie_ids = search_movies_by_title(conn, query)
+    resulting_movie_ids = search_movies_by_title(conn, query, threshold=0.8)
     results = []
     for movie_id in resulting_movie_ids:
         movie_metadata = get_movie_metadata(conn, movie_id)
