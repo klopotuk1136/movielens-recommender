@@ -28,10 +28,12 @@ def run_migrations(cur):
     # Makes sure that the extension is loaded before all other queries
     cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
     cur.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
+    print("Created extensions in postgres.")
 
     for path in sorted(glob.glob(os.path.join(ROOT, "app", "sql", "*.sql"))):
         sql = open(path).read()
         cur.execute(sql)
+        print(f"Executed {os.path.basename(path)} migration.")
 
 
 def insert_genres(cur, genre_list):
