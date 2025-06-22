@@ -22,6 +22,22 @@ def get_poster_path(tmdbid: int) -> str:
             poster_url = f"{TMDB_IMAGE_BASE}{path}"
     return poster_url
 
+
+def get_overview(tmdbid: int) -> str:
+    poster_url = None
+    tmdb_resp = requests.get(
+        f"https://api.themoviedb.org/3/movie/{tmdbid}",
+        params={"api_key": API_TOKEN, "language": "en-US"},
+        timeout=5
+    )
+    if tmdb_resp.ok:
+        data = tmdb_resp.json()
+        path = data.get("overview")
+        if path:
+            poster_url = f"{TMDB_IMAGE_BASE}{path}"
+    return poster_url
+
+
 def get_movie_data(tmdb_id: int) -> dict:
     base_url = "https://api.themoviedb.org/3/movie"
     url = f"{base_url}/{tmdb_id}"

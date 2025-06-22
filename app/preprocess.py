@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from clip_processor import compute_and_store_poster_embedding
 from openai_processor import compute_and_store_description_embedding
-from tmdb import get_poster_path, get_movie_full_metadata
+from tmdb import get_poster_path, get_overview, get_movie_full_metadata
 
 DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
 
@@ -124,16 +124,52 @@ def copy_ratings(cur, ratings_csv_path):
 
 
 def load_movie_metadata(cur):
+    cur.execute("TRUNCATE movies_metadata RESTART IDENTITY CASCADE;")
+
     cur.execute("SELECT count(*) from links")
     movie_number = cur.fetchone()[0]
 
     sql = "SELECT movieid, tmdbid FROM links"
     cur.execute(sql)
-    
-    for movieid, tmdbid in tqdm(cur, total=movie_number):
-        movie_metadata = get_movie_full_metadata(tmdbid)
-    #sql create tabel script 004 movieid + metadata columns "movies_metadata"
 
+    print(f"Inserting {movie_number} movie metadata into movies_metadata table...")
+    
+    records = []
+
+    for movieid, tmdbid in tqdm(cur, total=movie_number):
+        if tmdbid is None:
+            continue
+        movie_metadata = get_movie_full_metadata(tmdbid)
+        records.append((
+            movieid,
+            movie_metadata['title'],
+            movie_metadata['sinopsis'],
+            movie_metadata['genres'],
+            movie_metadata['poster_path'],
+            movie_metadata['avg_rating'],
+            movie_metadata['cast'],
+            movie_metadata['tmdb_url']
+        ))
+    
+    extras.execute_values(
+        cur,
+        """
+        INSERT INTO movies_metadata
+        (movieid, title, sinopsis, genres, poster_path,
+        avg_rating, cast, tmdb_url)
+        VALUES %s
+        ON CONFLICT (movieid) DO UPDATE
+        SET title      = EXCLUDED.title,
+            sinopsis   = EXCLUDED.sinopsis,
+            genres     = EXCLUDED.genres,
+            poster_path= EXCLUDED.poster_path,
+            avg_rating = EXCLUDED.avg_rating,
+            cast       = EXCLUDED.cast,
+            tmdb_url   = EXCLUDED.tmdb_url
+        """,
+    records
+)
+    
 
 def preprocess_clip_embeddings(cur, limit=None):
 
@@ -153,11 +189,7 @@ def preprocess_clip_embeddings(cur, limit=None):
         compute_and_store_poster_embedding(movieid, poster_path)
 
 
-def get_overview():
-    return "101-year-old Rose DeWitt Bukater tells the story of her life aboard the Titanic, 84 years later. A young Rose boards the ship with her mother and fiancé. Meanwhile, Jack Dawson and Fabrizio De Rossi win third-class tickets aboard the ship. Rose tells the whole story from Titanic's departure through to its death—on its first and last voyage—on April 15, 1912."
-
-
-def preprocess_openai_embeddings(cur, limit=1):
+def preprocess_openai_embeddings(cur, limit=None):
     """
     For each movie in your `links` table, fetch the TMDB overview,
     compute an OpenAI embedding, and store it.
@@ -177,14 +209,8 @@ def preprocess_openai_embeddings(cur, limit=1):
     cur.execute(sql)
 
     for movieid, tmdbid in tqdm(cur, total=movie_number):
-        # 1) get the TMDB metadata
-        #data = get_movie_data(tmdbid)
-
-        # 2) pull the overview (or other text field you like)
-        #overview = data.get("overview", "")
-        overview = get_overview()
+        overview = get_overview(tmdbid)
         if not overview:
-            # skip if there is no text
             continue
         compute_and_store_description_embedding(movieid, overview)
 
@@ -211,6 +237,7 @@ def main():
     # copy_tags(cur, TAGS_CSV)
     # copy_links(cur, LINKS_CSV)
     # copy_ratings(cur, RATINGS_CSV)
+    # load_movie_metadata(cur)
 
     # 6. Calculate clip embeddings for posters and save them
     #preprocess_clip_embeddings(cur, limit=100)
