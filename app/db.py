@@ -25,12 +25,10 @@ def get_movie_metadata(conn, movie_id: int):
 
 def search_movies_by_title(conn, query, limit=10):
     with conn.cursor() as cur:
-        cur.execute(f"""
-                SELECT
-                    movieid AS id
-                FROM movies
-                WHERE title % '{query}'
-                ORDER BY similarity(title, '{query}') DESC
-                LIMIT {limit};
-            """)
+        cur.execute("""
+            SELECT movieid AS id
+              FROM movies
+             ORDER BY title <-> %s
+             LIMIT %s;
+        """, (query, limit))
         return [row[0] for row in cur.fetchall()]

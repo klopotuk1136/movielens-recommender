@@ -3,26 +3,29 @@ import psycopg2
 from db import get_movie_metadata
 from tmdb import get_poster_path
 
-SUPPORTED_ALGORITHMS = ["dummy", "clip"]
+SUPPORTED_ALGORITHMS = ["dummy", "clip", "ratings"]
 
 def prepare_recommendations(conn, movie_id, algorithms):
     recommendations = []
     for method in algorithms:
-        recommendation_ids = get_recommendations(conn, movie_id, method)
-        algorithm_recommendations = []
-        for rec_id in recommendation_ids:
-            rec_metadata = get_movie_metadata(conn, rec_id)
-            rec_poster_url = None
-            if rec_metadata.get('tmdbid'):
-                rec_poster_url = get_poster_path(rec_metadata.get('tmdbid'))
-            algorithm_recommendations.append(
-                {   
-                    'movie_id': rec_id,
-                    'title': rec_metadata.get('title'),
-                    'poster_url': rec_poster_url
-                }
-            )
-        recommendations.append(algorithm_recommendations)
+        try:
+            recommendation_ids = get_recommendations(conn, movie_id, method)
+            algorithm_recommendations = []
+            for rec_id in recommendation_ids:
+                rec_metadata = get_movie_metadata(conn, rec_id)
+                rec_poster_url = None
+                if rec_metadata.get('tmdbid'):
+                    rec_poster_url = get_poster_path(rec_metadata.get('tmdbid'))
+                algorithm_recommendations.append(
+                    {   
+                        'movie_id': rec_id,
+                        'title': rec_metadata.get('title'),
+                        'poster_url': rec_poster_url
+                    }
+                )
+            recommendations.append(algorithm_recommendations)
+        except Exception:
+            continue
     return recommendations
 
 def get_recommendations(conn, movie_id: int, algorithm: str):
@@ -32,12 +35,14 @@ def get_recommendations(conn, movie_id: int, algorithm: str):
         return get_dummy_recommendations(movie_id)
     elif algorithm == "clip":
         return get_clip_recommendations(conn, movie_id)
+    elif algorithm == "ratings":
+        return get_rating_item2item_recommendation(conn, movie_id)
     else:
         raise KeyError(f"Provided algorithm {algorithm} is not supported. Supported list of algorithms: {SUPPORTED_ALGORITHMS}")
 
 
 def get_dummy_recommendations(movie_id: int):
-    return list(range(movie_id+1, movie_id+7))
+    return list(range(movie_id+1, movie_id+6))
 
 def get_clip_recommendations(conn, movie_id: int, top_k: int = 5):
     """
@@ -46,7 +51,7 @@ def get_clip_recommendations(conn, movie_id: int, top_k: int = 5):
     """
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT clip_embedding FROM clip_embeddings WHERE id = %s;",
+            "SELECT clip_embedding FROM movie_embeddings_table WHERE id = %s;",
             (movie_id,)
         )
         row = cur.fetchone()
@@ -58,7 +63,7 @@ def get_clip_recommendations(conn, movie_id: int, top_k: int = 5):
             SELECT
                 id as movie_id
             FROM
-                clip_embeddings
+                movie_embeddings_table
             WHERE
                 id <> %s
             ORDER BY
@@ -98,4 +103,12 @@ def get_openai_recommendations(conn, movie_id: int, top_k: int = 5):
         return [row[0] for row in cur.fetchall()]
     
 def get_rating_item2item_recommendation(conn, movie_id: int, top_k: int = 5):
-    pass
+    with conn.cursor() as cur:
+        sql = """SELECT
+                    similar_movie_id as id
+                FROM similar_rating_movies
+                where movie_id = %s
+                LIMIT %s;
+        """
+        cur.execute(sql, (movie_id, top_k))
+        return [row[0] for row in cur.fetchall()]

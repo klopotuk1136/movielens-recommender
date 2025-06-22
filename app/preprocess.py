@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from clip_processor import compute_and_store_poster_embedding
 from openai_processor import compute_and_store_description_embedding
+from ratings_processor import compute_and_store_rating_similar_movies
 from tmdb import get_poster_path, get_movie_full_metadata
 
 DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
@@ -39,7 +40,7 @@ def run_migrations(cur):
 
 def insert_genres(cur, genre_list):
     """
-    1. Truncate the genres table and bulk-insert all genres from genre_list.
+    Truncate the genres table and bulk-insert all genres from genre_list.
     """
     print(f"Inserting {len(genre_list)} genres into genres table...")
     cur.execute("TRUNCATE genres RESTART IDENTITY CASCADE;")
@@ -51,7 +52,7 @@ def insert_genres(cur, genre_list):
 
 def fetch_genre_mapping(cur):
     """
-    2. Query the genres table and build a mapping {genre_name: genre_id}.
+    Query the genres table and build a mapping {genre_name: genre_id}.
     Returns:
         dict: mapping from genre name to genre_id
     """
@@ -60,8 +61,8 @@ def fetch_genre_mapping(cur):
 
 def insert_movies(cur, movies_raw, mapping):
     """
-    3. Prepare a DataFrame of movies with an array of genre_ids,
-       then truncate and bulk-insert into the movies table.
+    Prepare a DataFrame of movies with an array of genre_ids,
+    then truncate and bulk-insert into the movies table.
     """
     print("Preparing movies data with genre_ids array...")
     movies_df = pd.DataFrame({
@@ -88,7 +89,7 @@ def insert_movies(cur, movies_raw, mapping):
 
 def copy_tags(cur, tags_csv_path):
     """
-    4. Truncate the tags table and bulk-load from a CSV using COPY.
+    Truncate the tags table and bulk-load from a CSV using COPY.
     """
     print("Copying tags (utf-8 decoding)...")
     cur.execute("TRUNCATE tags RESTART IDENTITY CASCADE;")
@@ -100,7 +101,7 @@ def copy_tags(cur, tags_csv_path):
 
 def copy_links(cur, links_csv_path):
     """
-    5. Truncate the links table and bulk-load from a CSV using COPY.
+    Truncate the links table and bulk-load from a CSV using COPY.
     """
     print("Copying links (utf-8 decoding)...")
     cur.execute("TRUNCATE links RESTART IDENTITY CASCADE;")
@@ -112,7 +113,7 @@ def copy_links(cur, links_csv_path):
 
 def copy_ratings(cur, ratings_csv_path):
     """
-    6. Truncate the ratings table and bulk-load from a CSV using COPY.
+    Truncate the ratings table and bulk-load from a CSV using COPY.
     """
     print("Copying ratings (utf-8 decoding)...")
     cur.execute("TRUNCATE ratings RESTART IDENTITY CASCADE;")
@@ -188,6 +189,13 @@ def preprocess_openai_embeddings(cur, limit=1):
             continue
         compute_and_store_description_embedding(movieid, overview)
 
+def preproces_rating_based_recommendations(conn, truncate=False):
+    cur = conn.cursor()
+    if truncate:
+        cur.execute("TRUNCATE TABLE similar_rating_movies;")
+        conn.commit()
+
+    compute_and_store_rating_similar_movies(conn)
 
 # Main load logic
 def main():
@@ -199,11 +207,11 @@ def main():
     run_migrations(cur)
 
     # Read raw movies to extract genres
-    print("Reading movies CSV to extract genres...")
-    movies_raw = pd.read_csv(MOVIES_CSV)
-    # Getting all distinct genres from the movie list
-    all_genres = set(g for sub in movies_raw['genres'].str.split('|') for g in sub if g != '(no genres listed)')
-    genre_list = sorted(all_genres)
+    # print("Reading movies CSV to extract genres...")
+    # movies_raw = pd.read_csv(MOVIES_CSV)
+    # # Getting all distinct genres from the movie list
+    # all_genres = set(g for sub in movies_raw['genres'].str.split('|') for g in sub if g != '(no genres listed)')
+    # genre_list = sorted(all_genres)
 
     # insert_genres(cur, genre_list)
     # genre_mapping = fetch_genre_mapping(cur)
@@ -215,6 +223,7 @@ def main():
     # 6. Calculate clip embeddings for posters and save them
     #preprocess_clip_embeddings(cur, limit=100)
     preprocess_openai_embeddings(cur)
+    #preproces_rating_based_recommendations(conn, truncate=True)
     cur.close()
     conn.close()
     print("MovieLens data loaded successfully.")

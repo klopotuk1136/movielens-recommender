@@ -42,7 +42,7 @@ def get_clip_embedding(img: Image.Image) -> torch.Tensor:
 def store_embedding_in_pg(movie_id: int, embedding: torch.Tensor, conn: psycopg2.extensions.connection):
     """
     Inserts (or upserts) a 512-dim embedding into Postgres (pgvector).
-    Assumes a table called "clip_embeddings(id integer PRIMARY KEY, clip_embeddings vector(512))".
+    Assumes a table called "movie_embeddings_table(id integer PRIMARY KEY, clip_embeddings vector(512))".
     """
     # Convert torch.Tensor → Python list of floats
     embed_list = embedding.tolist()  # length 512
