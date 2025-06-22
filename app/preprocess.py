@@ -6,7 +6,8 @@ from psycopg2 import extras
 from tqdm import tqdm
 
 from clip_processor import compute_and_store_poster_embedding
-from tmdb import get_poster_path
+from openai_processor import compute_and_store_description_embedding
+from tmdb import get_poster_path, get_movie_full_metadata
 
 DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
 
@@ -121,10 +122,21 @@ def copy_ratings(cur, ratings_csv_path):
             f
         )
 
-def preprocess_clip_embeddings(cur, truncate=False, limit=None):
 
-    if truncate:
-        cur.execute("TRUNCATE clip_embeddings CASCADE;")
+def load_movie_metadata(cur):
+    cur.execute("SELECT count(*) from links")
+    movie_number = cur.fetchone()[0]
+
+    sql = "SELECT movieid, tmdbid FROM links"
+    cur.execute(sql)
+    
+    for movieid, tmdbid in tqdm(cur, total=movie_number):
+        movie_metadata = get_movie_full_metadata(tmdbid)
+    #sql create tabel script 004 movieid + metadata columns "movies_metadata"
+
+
+def preprocess_clip_embeddings(cur, limit=None):
+
     print("Processing movie poster paths")
 
     cur.execute("SELECT count(*) from links")
@@ -139,6 +151,42 @@ def preprocess_clip_embeddings(cur, truncate=False, limit=None):
     for movieid, tmdbid in tqdm(cur, total=movie_number):
         poster_path = get_poster_path(tmdbid)
         compute_and_store_poster_embedding(movieid, poster_path)
+
+
+def get_overview():
+    return "101-year-old Rose DeWitt Bukater tells the story of her life aboard the Titanic, 84 years later. A young Rose boards the ship with her mother and fiancé. Meanwhile, Jack Dawson and Fabrizio De Rossi win third-class tickets aboard the ship. Rose tells the whole story from Titanic's departure through to its death—on its first and last voyage—on April 15, 1912."
+
+
+def preprocess_openai_embeddings(cur, limit=1):
+    """
+    For each movie in your `links` table, fetch the TMDB overview,
+    compute an OpenAI embedding, and store it.
+    """
+    print("Processing movie description embeddings…")
+
+    # figure out how many to do
+    cur.execute("SELECT COUNT(*) FROM links")
+    movie_number = cur.fetchone()[0]
+    if limit:
+        movie_number = min(movie_number, limit)
+
+    # fetch movieid, tmdbid pairs
+    sql = "SELECT movieid, tmdbid FROM links"
+    if limit:
+        sql += f" LIMIT {limit}"
+    cur.execute(sql)
+
+    for movieid, tmdbid in tqdm(cur, total=movie_number):
+        # 1) get the TMDB metadata
+        #data = get_movie_data(tmdbid)
+
+        # 2) pull the overview (or other text field you like)
+        #overview = data.get("overview", "")
+        overview = get_overview()
+        if not overview:
+            # skip if there is no text
+            continue
+        compute_and_store_description_embedding(movieid, overview)
 
 
 # Main load logic
@@ -157,15 +205,16 @@ def main():
     all_genres = set(g for sub in movies_raw['genres'].str.split('|') for g in sub if g != '(no genres listed)')
     genre_list = sorted(all_genres)
 
-    insert_genres(cur, genre_list)
-    genre_mapping = fetch_genre_mapping(cur)
-    insert_movies(cur, movies_raw, genre_mapping)
-    copy_tags(cur, TAGS_CSV)
-    copy_links(cur, LINKS_CSV)
-    copy_ratings(cur, RATINGS_CSV)
+    # insert_genres(cur, genre_list)
+    # genre_mapping = fetch_genre_mapping(cur)
+    # insert_movies(cur, movies_raw, genre_mapping)
+    # copy_tags(cur, TAGS_CSV)
+    # copy_links(cur, LINKS_CSV)
+    # copy_ratings(cur, RATINGS_CSV)
 
     # 6. Calculate clip embeddings for posters and save them
-    #preprocess_clip_embeddings(cur, limit=3000)
+    #preprocess_clip_embeddings(cur, limit=100)
+    preprocess_openai_embeddings(cur)
     cur.close()
     conn.close()
     print("MovieLens data loaded successfully.")

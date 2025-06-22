@@ -51,7 +51,7 @@ def store_embedding_in_pg(movie_id: int, embedding: torch.Tensor, conn: psycopg2
         # Upsert: if movie_id already exists, replace; otherwise insert.
         # Change table/column names if yours differ.
         sql = """
-        INSERT INTO clip_embeddings (id, clip_embedding)
+        INSERT INTO movie_embeddings_table (id, clip_embedding)
         VALUES (%s, %s)
         ON CONFLICT (id) DO UPDATE
           SET clip_embedding = EXCLUDED.clip_embedding
