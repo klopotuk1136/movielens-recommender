@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS movies (
   genre_ids INT[] NOT NULL DEFAULT '{}'
 );
 
-CREATE INDEX IF NOT EXISTS idx_movies_title ON movies USING GIN (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_movies_title ON movies USING GIST (title gist_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_movies_genre_ids ON movies USING GIN (genre_ids);
 
 -- links.csv:
