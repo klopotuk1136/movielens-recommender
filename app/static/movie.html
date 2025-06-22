@@ -164,10 +164,42 @@
       font-size: 0.9rem;
       font-weight: 500;
     }
+    .alg-rating { margin-top: 0.5em; }
+    .star {
+      font-size: 1.5em;
+      cursor: pointer;
+      color: var(--primary);
+      transition: color 0.1s;
+    }
+    .star.hover,
+    .star.selected {
+      color: gold;
+    }
+    .back-button {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: inline-block;
+      padding: 6px 12px;
+      background: #f0f0f0;
+      border: 1px solid var(--primary);
+      border-radius: 4px;
+      text-decoration: none;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .back-button:hover {
+      background: #e0e0e0;
+    }
   </style>
 </head>
+<script>
+  const movieId = {{ movie_id | tojson }};
+</script>
 <body>
-  <h1>{{ movie.title }}</h1>
+  <a href="/" class="back-button">← Back</a>
+  <h1>{{ movie_name_with_year }}</h1>
   <div class="container">
     <section id="movie-details">
       <div class="left">
@@ -209,8 +241,14 @@
     {% if recommendations %}
       <section id="all-recommendations">
         {% for recs in recommendations %}
-          <div class="alg-section">
+          <div class="alg-section" data-algo-index="{{ loop.index }}">
             <h2>Recommendation Algorithm {{ loop.index }}</h2>
+            <!-- ★★★★★ star widget -->
+            <div class="alg-rating">
+              {% for i in range(1,6) %}
+                <span class="star" data-value="{{ i }}">☆</span>
+              {% endfor %}
+            </div>
             <div class="recommendation-list">
               {% for rec in recs %}
                 <a class="recommendation-item" href="/movies/{{ rec.movie_id }}/">
@@ -224,6 +262,45 @@
           </div>
         {% endfor %}
       </section>
+      <script>
+        // pass movie_id into JS
+        document.querySelectorAll('.alg-section').forEach(section => {
+          const algoIndex = section.dataset.algoIndex;
+          const stars = section.querySelectorAll('.star');
+
+          // on hover: highlight up to this star
+          stars.forEach(s => {
+            s.addEventListener('mouseover', ev => {
+              const val = +ev.target.dataset.value;
+              stars.forEach(x => x.classList.toggle('hover', +x.dataset.value <= val));
+            });
+            s.addEventListener('mouseout', () => {
+              stars.forEach(x => x.classList.remove('hover'));
+            });
+
+            // on click: set selection and POST
+            s.addEventListener('click', ev => {
+              const score = +ev.target.dataset.value;
+              stars.forEach(x => x.classList.toggle('selected', +x.dataset.value <= score));
+              fetch('/ratings/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  movie_id: Number(movieId),
+                  algorithm_index: Number(algoIndex),
+                  score: score
+                })
+              })
+              .then(r => {
+                if (!r.ok) throw new Error('Network response was not ok')
+                return r.json();
+              })
+              .then(data => console.log('Rated:', data))
+              .catch(err => console.error('Error sending rating:', err));
+            });
+          });
+        });
+      </script>
     {% endif %}
   </div>
 </body>

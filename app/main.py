@@ -1,9 +1,10 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from psycopg2 import pool
+from psycopg2 import pool, IntegrityError
 from pgvector.psycopg2 import register_vector
+from pydantic import BaseModel
 
 from tmdb import get_poster_path, get_movie_full_metadata
 from db import get_movie_metadata, search_movies_by_title
@@ -99,6 +100,7 @@ async def root(request: Request):
 async def get_movie_page(request: Request, movie_id: int, conn=Depends(get_conn)):
     """The movie page where the user sees the movie details as well as recommendations"""
     movie_metadata = get_movie_metadata(conn, movie_id)
+    movie_name_with_year = movie_metadata['title']
     try:
         movie_additional_info = get_movie_full_metadata(movie_metadata.get('tmdbid'))
     except ValueError:
@@ -114,10 +116,39 @@ async def get_movie_page(request: Request, movie_id: int, conn=Depends(get_conn)
     recommendations = prepare_recommendations(conn, movie_id, ALGORITHMS)
     return templates.TemplateResponse("movie.html", {
         "request":     request,
+        "movie_id": movie_id,
+        "movie_name_with_year": movie_name_with_year,
         "movie": movie_additional_info,
         'recommendations': recommendations
     })
 
+class Rating(BaseModel):
+    movie_id: int
+    algorithm_index: int
+    score: int
+
+@app.post("/ratings/", status_code=status.HTTP_201_CREATED)
+def create_rating(rating: Rating, conn=Depends(get_conn)):
+    try:
+        algorithm_name = ALGORITHMS[rating.algorithm_index-1]
+        with conn.cursor() as cur:
+            cur.execute(
+                    """
+                    INSERT INTO algorithm_ratings (movie_id, algorithm_index, algorithm_name, score)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING  id, movie_id, algorithm_index, score, created_at;
+                    """,
+                    (rating.movie_id, rating.algorithm_index, algorithm_name, rating.score)
+                )
+            new_row = cur.fetchone()
+        conn.commit()
+    except IntegrityError as e:
+        conn.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid data or constraint violation"
+        )
+    return new_row
 
 if __name__ == "__main__":
     import uvicorn
