@@ -80,7 +80,7 @@ def get_movie_full_metadata(tmdb_id: int) -> dict:
         raise RuntimeError(f"Data error: {e}")
 
     except Exception as e:
-        raise RuntimeError(f"Unexpected error while fetching metadata for movie ID {movie_id}: {e}")
+        raise RuntimeError(f"Unexpected error while fetching metadata for movie ID {tmdb_id}: {e}")
 
     return meta
 

@@ -109,6 +109,18 @@ def copy_links(cur, links_csv_path):
             f
         )
 
+def copy_ratings(cur, ratings_csv_path):
+    """
+    6. Truncate the ratings table and bulk-load from a CSV using COPY.
+    """
+    print("Copying ratings (utf-8 decoding)...")
+    cur.execute("TRUNCATE ratings RESTART IDENTITY CASCADE;")
+    with open(ratings_csv_path, 'r', encoding='utf-8', errors='replace') as f:
+        cur.copy_expert(
+            "COPY ratings (userid, movieid, rating, timestamp) FROM STDIN WITH CSV HEADER",
+            f
+        )
+
 def preprocess_clip_embeddings(cur, truncate=False, limit=None):
 
     if truncate:
@@ -145,20 +157,12 @@ def main():
     all_genres = set(g for sub in movies_raw['genres'].str.split('|') for g in sub if g != '(no genres listed)')
     genre_list = sorted(all_genres)
 
-    # 1. Load genres lookup
     insert_genres(cur, genre_list)
-
-    # 2. Fetch mapping of genre name -> genre_id
     genre_mapping = fetch_genre_mapping(cur)
-
-    # 3. Load movies with genre_ids array
     insert_movies(cur, movies_raw, genre_mapping)
-
-    # 4. Bulk load tags
     copy_tags(cur, TAGS_CSV)
-
-    # 5. Bulk load links
     copy_links(cur, LINKS_CSV)
+    copy_ratings(cur, RATINGS_CSV)
 
     # 6. Calculate clip embeddings for posters and save them
     #preprocess_clip_embeddings(cur, limit=3000)
