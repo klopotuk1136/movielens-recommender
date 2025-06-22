@@ -16,7 +16,7 @@ templates = Jinja2Templates(directory="static")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@localhost:5432/postgres")
 #DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:pass@db:5432/postgres")
 
-ALGORITHMS = ["clip", "dummy", "ratings", "chatgpt"]
+ALGORITHMS = ["clip", "openai", "weighted", "ratings", "chatgpt"]
 
 
 @app.on_event("startup")

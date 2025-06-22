@@ -6,7 +6,7 @@ from tmdb import get_poster_path
 from openai_processor import get_chatgpt_predictions
 from db import search_movies_by_title
 
-SUPPORTED_ALGORITHMS = ["dummy", "clip", "ratings", "chatgpt"]
+SUPPORTED_ALGORITHMS = ["dummy", "clip", "openai", "ratings", "chatgpt", "weighted"]
 
 def prepare_recommendations(conn, movie_id, algorithms):
     recommendations = []
@@ -27,7 +27,8 @@ def prepare_recommendations(conn, movie_id, algorithms):
                     }
                 )
             recommendations.append(algorithm_recommendations)
-        except Exception:
+        except Exception as e:
+            print(e)
             continue
     return recommendations
 
@@ -42,6 +43,10 @@ def get_recommendations(conn, movie_id: int, algorithm: str):
         return get_rating_item2item_recommendation(conn, movie_id)
     elif algorithm == 'chatgpt':
         return get_chatgpt_recommendations(conn, movie_id)
+    elif algorithm == 'openai':
+        return get_openai_recommendations(conn, movie_id)
+    elif algorithm == 'weighted':
+        return get_clip_and_openai_recommendations(conn, movie_id)
     else:
         raise KeyError(f"Provided algorithm {algorithm} is not supported. Supported list of algorithms: {SUPPORTED_ALGORITHMS}")
 
@@ -85,7 +90,7 @@ def get_openai_recommendations(conn, movie_id: int, top_k: int = 5):
     """
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT openai_embedding FROM openai_embeddings WHERE id = %s;",
+            "SELECT openai_embedding FROM movie_embeddings_table WHERE id = %s;",
             (movie_id,)
         )
         row = cur.fetchone()
@@ -97,7 +102,7 @@ def get_openai_recommendations(conn, movie_id: int, top_k: int = 5):
             SELECT
                 id as movie_id
             FROM
-                openai_embeddings
+                movie_embeddings_table
             WHERE
                 id <> %s
             ORDER BY
@@ -105,6 +110,44 @@ def get_openai_recommendations(conn, movie_id: int, top_k: int = 5):
             LIMIT %s;
         """
         cur.execute(sql, (movie_id, target_embedding, top_k))
+        return [row[0] for row in cur.fetchall()]
+    
+def get_clip_and_openai_recommendations(conn, movie_id: int, alpha=0.3, top_k: int = 5):
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT clip_embedding, openai_embedding FROM movie_embeddings_table WHERE id = %s;",
+            (movie_id,)
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError(f"No embedding found for id={movie_id}")
+        clip_embedding, openai_embedding = row
+        
+        beta = 1.0 - alpha
+
+        sql = """
+            SELECT
+                id AS movie_id
+            FROM
+                movie_embeddings_table
+            WHERE
+                id <> %s
+            ORDER BY
+                (clip_embedding <=> %s)*%s
+            + (openai_embedding <=> %s)*%s ASC
+            LIMIT %s;
+        """
+        cur.execute(
+            sql,
+            (
+                movie_id,
+                clip_embedding,
+                alpha,
+                openai_embedding,
+                beta,
+                top_k,
+            ),
+        )
         return [row[0] for row in cur.fetchall()]
     
 def get_rating_item2item_recommendation(conn, movie_id: int, top_k: int = 5):

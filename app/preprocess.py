@@ -228,30 +228,29 @@ def main():
     conn = connect()
 
     conn.autocommit = True
-    cur = conn.cursor()
+    with conn.cursor() as cur:
+        
+        run_migrations(cur)
+
+        # Read raw movies to extract genres
+        print("Reading movies CSV to extract genres...")
+        movies_raw = pd.read_csv(MOVIES_CSV)
+        # Getting all distinct genres from the movie list
+        all_genres = set(g for sub in movies_raw['genres'].str.split('|') for g in sub if g != '(no genres listed)')
+        genre_list = sorted(all_genres)
+
+        insert_genres(cur, genre_list)
+        genre_mapping = fetch_genre_mapping(cur)
+        insert_movies(cur, movies_raw, genre_mapping)
+        copy_tags(cur, TAGS_CSV)
+        copy_links(cur, LINKS_CSV)
+        copy_ratings(cur, RATINGS_CSV)
+
+        preprocess_clip_embeddings(cur, limit=100)
+        preprocess_openai_embeddings(cur, limit=100)
     
-    run_migrations(cur)
 
-    # Read raw movies to extract genres
-    # print("Reading movies CSV to extract genres...")
-    # movies_raw = pd.read_csv(MOVIES_CSV)
-    # # Getting all distinct genres from the movie list
-    # all_genres = set(g for sub in movies_raw['genres'].str.split('|') for g in sub if g != '(no genres listed)')
-    # genre_list = sorted(all_genres)
-
-    # insert_genres(cur, genre_list)
-    # genre_mapping = fetch_genre_mapping(cur)
-    # insert_movies(cur, movies_raw, genre_mapping)
-    # copy_tags(cur, TAGS_CSV)
-    # copy_links(cur, LINKS_CSV)
-    # copy_ratings(cur, RATINGS_CSV)
-    # load_movie_metadata(cur)
-
-    # 6. Calculate clip embeddings for posters and save them
-    #preprocess_clip_embeddings(cur, limit=100)
-    preprocess_openai_embeddings(cur)
-    #preproces_rating_based_recommendations(conn, truncate=True)
-    cur.close()
+    preproces_rating_based_recommendations(conn, truncate=True)
     conn.close()
     print("MovieLens data loaded successfully.")
 
